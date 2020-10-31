@@ -65,7 +65,7 @@ library
     ]
 
 libraryServer :: forall m i. (MonadServer m)
-              => ServerT ServiceMapping i ServiceDefinition m _
+              => ServerT ServiceMapping i '[ServiceDefinition] m _
 libraryServer
   = resolver ( object @"Book"   ( field  @"id"      bookId
                                 , field  @"title"   bookTitle

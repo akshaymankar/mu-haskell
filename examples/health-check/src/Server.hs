@@ -76,7 +76,7 @@ type StatusUpdates = TBMChan HealthStatusMsg
 
 server :: (MonadServer m, MonadTrace m)
        => StatusMap -> StatusUpdates
-       -> ServerT '[] info HealthCheckService m _
+       -> ServerT '[] info '[HealthCheckService] m _
 server m upd
   = wrapServer (\info h -> liftIO (print info) >> h) $
     singleService ( method @"setStatus"   $ setStatus_ m upd

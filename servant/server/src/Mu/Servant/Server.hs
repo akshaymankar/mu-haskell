@@ -91,9 +91,9 @@ servantServerHandlers ::
   , ExtraFor ('Package pname ss) ~ EmptyAPI
   )
   => (forall a. m a -> Handler a) -- ^ how to turn the inner Mu monad into 'Handler', use 'toHandler' (or a composition with it) in most cases
-  -> Mu.Server.ServerT chn () ('Package pname ss) m handlers  -- ^ server to be converted
+  -> Mu.Server.ServerT chn () '[ 'Package pname ss] m '[handlers]  -- ^ server to be converted
   -> Servant.Server (PackageAPI ('Package pname ss) handlers)
-servantServerHandlers f (Services svcs) =
+servantServerHandlers f (Packages (Services svcs) NoPackages) =
   emptyServer :<|> servantServiceHandlers f (Proxy @('Package pname ss)) svcs
 
 -- | Converts a Mu server into Servant server
@@ -111,22 +111,22 @@ servantServerHandlersExtra ::
   )
   => (forall a. m a -> Handler a) -- ^ how to turn the inner Mu monad into 'Handler', use 'toHandler' (or a composition with it) in most cases
   -> Server (ExtraFor ('Package pname ss)) -- ^ additional handler for the extra route
-  -> Mu.Server.ServerT chn () ('Package pname ss) m handlers  -- ^ server to be converted
+  -> Mu.Server.ServerT chn () '[ 'Package pname ss] m '[handlers]  -- ^ server to be converted
   -> Servant.Server (PackageAPI ('Package pname ss) handlers)
-servantServerHandlersExtra f extra (Services svcs) =
+servantServerHandlersExtra f extra (Packages (Services svcs) NoPackages) =
   extra :<|> servantServiceHandlers f (Proxy @('Package pname ss)) svcs
 
 -- | Converts the information from a Mu server
 --   into a 'Swagger' document.
 swagger :: forall pname ss handlers chn m.
            HasSwagger (ServicesAPI ('Package pname ss) ss handlers)
-        => Mu.Server.ServerT chn () ('Package pname ss) m handlers
+        => Mu.Server.ServerT chn () '[ 'Package pname ss] m '[handlers]
         -> Swagger
 swagger _ = toSwagger (Proxy @(ServicesAPI ('Package pname ss) ss handlers))
 
 -- | Obtains a Servant API 'Proxy' value for use
 --   with functions like 'serve' and 'layout'.
-packageAPI :: Mu.Server.ServerT chn t pkg s handlers -> Proxy (PackageAPI pkg handlers)
+packageAPI :: Mu.Server.ServerT chn t '[pkg] s '[handlers] -> Proxy (PackageAPI pkg handlers)
 packageAPI _ = Proxy
 
 type family PackageAPI (pkg :: Package snm mnm anm (TypeRef snm)) handlers where

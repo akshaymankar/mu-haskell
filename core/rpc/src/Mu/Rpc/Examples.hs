@@ -80,7 +80,7 @@ newtype HiRequest = HiRequest { number :: Int }
     via (WithSchema QuickstartSchema "HiRequest" HiRequest)
 
 quickstartServer :: forall m i. (MonadServer m)
-                 => ServerT '[] i QuickStartService m _
+                 => ServerT '[] i '[QuickStartService] m _
 quickstartServer
   -- = Server (sayHello :<|>: sayHi :<|>: sayManyHellos :<|>: H0)
   = singleService ( method @"SayHello" sayHello
@@ -120,7 +120,7 @@ type ApolloBookAuthor = '[
   ]
 
 apolloServer :: forall m i. (MonadServer m)
-             => ServerT ApolloBookAuthor i ApolloService m _
+             => ServerT ApolloBookAuthor i '[ApolloService] m _
 apolloServer
   = resolver
       ( object @"Author" ( field @"name"   authorName
