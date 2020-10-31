@@ -81,7 +81,7 @@ type ObjectMapping = '[
 
 libraryServer :: forall i.
                  SqlBackend
-              -> ServerT ObjectMapping i Library ServerErrorIO _
+              -> ServerT ObjectMapping i '[Library] ServerErrorIO _
 libraryServer conn
   = resolver ( object @"Book"     ( field  @"id"        bookId
                                   , field  @"title"     bookTitle

@@ -59,7 +59,7 @@ runPipeline
   :: forall qr mut sub p m chn hs. GraphQLApp p qr mut sub m chn hs
   => (forall a. m a -> ServerErrorIO a)
   -> RequestHeaders
-  -> ServerT chn GQL.Field p m hs
+  -> ServerT chn GQL.Field '[p] m '[hs]
   -> Proxy qr -> Proxy mut -> Proxy sub
   -> Maybe T.Text -> VariableMapC -> GQL.ExecutableDocument
   -> IO Aeson.Value
@@ -76,7 +76,7 @@ runSubscriptionPipeline
   :: forall qr mut sub p m chn hs. GraphQLApp p qr mut sub m chn hs
   => (forall a. m a -> ServerErrorIO a)
   -> RequestHeaders
-  -> ServerT chn GQL.Field p m hs
+  -> ServerT chn GQL.Field '[p] m '[hs]
   -> Proxy qr -> Proxy mut -> Proxy sub
   -> Maybe T.Text -> VariableMapC -> GQL.ExecutableDocument
   -> ConduitT Aeson.Value Void IO ()
@@ -120,13 +120,13 @@ class RunDocument (p :: Package')
   runDocument ::
        (forall a. m a -> ServerErrorIO a)
     -> RequestHeaders
-    -> ServerT chn GQL.Field p m hs
+    -> ServerT chn GQL.Field '[p] m '[hs]
     -> Document p qr mut sub
     -> WriterT [GraphQLError] IO Aeson.Value
   runDocumentSubscription ::
        (forall a. m a -> ServerErrorIO a)
     -> RequestHeaders
-    -> ServerT chn GQL.Field p m hs
+    -> ServerT chn GQL.Field '[p] m '[hs]
     -> Document p qr mut sub
     -> ConduitT Aeson.Value Void IO ()
     -> IO ()
@@ -222,7 +222,7 @@ yieldDocument ::
      RunDocument p qr mut sub m chn hs
   => (forall a. m a -> ServerErrorIO a)
   -> RequestHeaders
-  -> ServerT chn GQL.Field p m hs
+  -> ServerT chn GQL.Field '[p] m '[hs]
   -> Document p qr mut sub
   -> ConduitT Aeson.Value Void IO ()
   -> IO ()
@@ -242,12 +242,12 @@ runQuery
      , inh ~ MappingRight chn sname )
   => (forall a. m a -> ServerErrorIO a)
   -> RequestHeaders
-  -> Intro.Schema -> ServerT chn GQL.Field p m hs
+  -> Intro.Schema -> ServerT chn GQL.Field '[p] m '[hs]
   -> [T.Text]
   -> inh
   -> ServiceQuery p s
   -> WriterT [GraphQLError] IO Aeson.Value
-runQuery f req sch whole@(Services ss) path = runQueryFindHandler f req sch whole path ss
+runQuery f req sch whole@(Packages (Services ss) NoPackages) path = runQueryFindHandler f req sch whole path ss
 
 runSubscription
   :: forall m p s pname ss hs sname ms chn inh.
@@ -257,13 +257,13 @@ runSubscription
      , inh ~ MappingRight chn sname )
   => (forall a. m a -> ServerErrorIO a)
   -> RequestHeaders
-  -> ServerT chn GQL.Field p m hs
+  -> ServerT chn GQL.Field '[p] m '[hs]
   -> [T.Text]
   -> inh
   -> OneMethodQuery p s
   -> ConduitT Aeson.Value Void IO ()
   -> IO ()
-runSubscription f req whole@(Services ss) path
+runSubscription f req whole@(Packages (Services ss) NoPackages) path
   = runSubscriptionFindHandler f req whole path ss
 
 class RunQueryFindHandler m p whole chn ss s hs where
@@ -273,7 +273,7 @@ class RunQueryFindHandler m p whole chn ss s hs where
        , inh ~ MappingRight chn sname )
     => (forall a. m a -> ServerErrorIO a)
     -> RequestHeaders
-    -> Intro.Schema -> ServerT chn GQL.Field p m whole
+    -> Intro.Schema -> ServerT chn GQL.Field '[p] m '[whole]
     -> [T.Text]
     -> ServicesT chn GQL.Field ss m hs
     -> inh
@@ -285,7 +285,7 @@ class RunQueryFindHandler m p whole chn ss s hs where
        , inh ~ MappingRight chn sname )
     => (forall a. m a -> ServerErrorIO a)
     -> RequestHeaders
-    -> ServerT chn GQL.Field p m whole
+    -> ServerT chn GQL.Field '[p] m '[whole]
     -> [T.Text]
     -> ServicesT chn GQL.Field ss m hs
     -> inh
@@ -354,7 +354,7 @@ class RunMethod m p whole chn s ms hs where
        , inh ~ MappingRight chn sname )
     => (forall a. m a -> ServerErrorIO a)
     -> RequestHeaders
-    -> ServerT chn GQL.Field p m whole
+    -> ServerT chn GQL.Field '[p] m '[whole]
     -> Proxy s -> [T.Text] -> Maybe T.Text -> inh
     -> HandlersT chn GQL.Field inh ms m hs
     -> NS (ChosenMethodQuery p) ms
@@ -365,7 +365,7 @@ class RunMethod m p whole chn s ms hs where
        , inh ~ MappingRight chn sname )
     => (forall a. m a -> ServerErrorIO a)
     -> RequestHeaders
-    -> ServerT chn GQL.Field p m whole
+    -> ServerT chn GQL.Field '[p] m '[whole]
     -> Proxy s -> [T.Text] -> Maybe T.Text -> inh
     -> HandlersT chn GQL.Field inh ms m hs
     -> NS (ChosenMethodQuery p) ms
@@ -400,7 +400,7 @@ class Handles chn args r m h
   runHandler
     :: (forall a. m a -> ServerErrorIO a)
     -> RequestHeaders
-    -> ServerT chn GQL.Field p m whole
+    -> ServerT chn GQL.Field '[p] m '[whole]
     -> [T.Text]
     -> h
     -> NP (ArgumentValue p) args
@@ -409,7 +409,7 @@ class Handles chn args r m h
   runHandlerSubscription
     :: (forall a. m a -> ServerErrorIO a)
     -> RequestHeaders
-    -> ServerT chn GQL.Field p m whole
+    -> ServerT chn GQL.Field '[p] m '[whole]
     -> [T.Text]
     -> h
     -> NP (ArgumentValue p) args
@@ -507,7 +507,7 @@ instance ArgumentConversion chn ref t
 class ToRef chn r l => ResultConversion m p whole chn r l where
   convertResult :: (forall a. m a -> ServerErrorIO a)
                 -> RequestHeaders
-                -> ServerT chn GQL.Field p m whole
+                -> ServerT chn GQL.Field '[p] m '[whole]
                 -> [T.Text]
                 -> ReturnQuery' p r
                 -> l -> WriterT [GraphQLError] IO (Maybe Aeson.Value)

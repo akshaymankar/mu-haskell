@@ -24,14 +24,14 @@ operation in the corresponding Mu service declaration.
 In general, you can declare a server by naming
 each of the methods with their handlers:
 
-> server :: MonadServer m => ServerT MyService m _
+> server :: MonadServer m => ServerT '[] i MyService m _
 > server = singleService ( method @"m1" h1
 >                        , method @"m2" h2
 >                        , ... )
 
 or by position:
 
-> server :: MonadServer m => ServerT MyService m _
+> server :: MonadServer m => ServerT '[] i MyService m _
 > server = Server (h1 :<|>: h2 :<|>: ... :<|>: H0)
 
 where each of @h1@, @h2@, ... handles each method in
@@ -58,7 +58,7 @@ module Mu.Server (
 , NamedList(..)
   -- ** Definitions by position
 , SingleServerT, pattern Server
-, ServerT(..), ServicesT(..), HandlersT(.., (:<||>:), (:<|>:))
+, ServerT(..), PackageT(..), ServicesT(..), HandlersT(.., (:<||>:), (:<|>:))
   -- ** Simple servers using only IO
 , ServerErrorIO, ServerIO
   -- * Errors which might be raised
@@ -85,7 +85,7 @@ type ServerErrorIO = ExceptT ServerError IO
 
 -- | Simple 'ServerT' which uses only 'IO' and errors,
 --   and whose service has no back-references.
-type ServerIO info srv = ServerT '[] info srv ServerErrorIO
+type ServerIO info pkgs = ServerT '[] info pkgs ServerErrorIO
 
 -- | Stop the current handler,
 --   returning an error to the client.
@@ -132,21 +132,30 @@ type ServiceChain snm = Mappings snm Type
 
 -- | A server for a single service,
 --   like most RPC ones.
-type SingleServerT = ServerT '[]
+type SingleServerT info pkg = ServerT '[] info '[pkg]
 
 -- | Definition of a complete server
---   for a set of services, with possible
+--   for a set of packages, with possible
 --   references between them.
 data ServerT (chn :: ServiceChain snm) (info :: Type)
-             (s :: Package snm mnm anm (TypeRef snm))
-             (m :: Type -> Type) (hs :: [[Type]]) where
-  Services :: ServicesT chn info s m hs
-           -> ServerT chn info ('Package pname s) m hs
+             (pkgs :: [Package snm mnm anm (TypeRef snm)])
+             (m :: Type -> Type) (hs :: [[[Type]]]) where
+     NoPackages :: ServerT chn info '[] m '[]
+     Packages :: PackageT chn info p m hs
+              -> ServerT chn info pkgs m hss
+              -> ServerT chn info (p ': pkgs) m (hs ': hss)
 
 pattern Server :: (MappingRight chn sname ~ ())
                => HandlersT chn info () methods m hs
-               -> ServerT chn info ('Package pname '[ 'Service sname methods ]) m '[hs]
-pattern Server svr = Services (svr :<&>: S0)
+               -> ServerT chn info '[ 'Package pname '[ 'Service sname methods ]] m '[ '[hs]]
+pattern Server svr = Packages (Services (svr :<&>: S0)) NoPackages
+
+-- | Definition of a complete server for a package.
+data PackageT (chn :: ServiceChain snm) (info :: Type)
+              (p :: Package snm mnm anm (TypeRef snm))
+              (m :: Type -> Type) (hs :: [[Type]]) where
+  Services :: ServicesT chn info s m hs
+           -> PackageT chn info ('Package pname s) m hs
 
 infixr 3 :<&>:
 -- | Definition of a complete server for a service.
@@ -298,7 +307,7 @@ singleService
   :: ( ToNamedList p nl
      , ToHandlers chn info () methods m hs nl
      , MappingRight chn sname ~ () )
-  => p -> ServerT chn info ('Package pname '[ 'Service sname methods ]) m '[hs]
+  => p -> ServerT chn info '[ 'Package pname '[ 'Service sname methods ]] m '[ '[hs]]
 singleService nl = Server $ toHandlers $ toNamedList nl
 
 -- | Defines the implementation of a single GraphQL object,
@@ -324,8 +333,8 @@ object nl = Named $ toHandlers $ toNamedList nl
 --   > resolver (object @"o1" ..., object @"o2" ...)
 resolver
   :: (ToNamedList p nl, ToServices chn info ss m hs nl)
-  => p -> ServerT chn info ('Package pname ss) m hs
-resolver nl = Services $ toServices $ toNamedList nl
+  => p -> ServerT chn info '[ 'Package pname ss] m '[hs]
+resolver nl = Packages (Services $ toServices $ toNamedList nl) NoPackages
 
 -- | A value tagged with a type-level name.
 data Named n h where
@@ -427,8 +436,15 @@ wrapServer
   :: forall chn info p m topHs.
      (forall a. RpcInfo info -> m a -> m a)
   -> ServerT chn info p m topHs -> ServerT chn info p m topHs
-wrapServer f (Services ss) = Services (wrapServices ss)
+wrapServer f = wrapPackages
   where
+    wrapPackages :: forall ps hs.
+                    ServerT chn info ps m hs
+                 -> ServerT chn info ps m hs
+    wrapPackages NoPackages = NoPackages
+    wrapPackages (Packages (Services ss) rest)
+      = Packages (Services (wrapServices ss)) (wrapPackages rest)
+
     wrapServices :: forall ss hs.
                     ServicesT chn info ss m hs
                  -> ServicesT chn info ss m hs

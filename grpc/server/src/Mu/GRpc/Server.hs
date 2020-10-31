@@ -65,24 +65,20 @@ import           Mu.Server
 
 -- | Run a Mu 'Server' on the given port.
 runGRpcApp
-  :: ( KnownName name
-     , GRpcServiceHandlers ('Package ('Just name) services)
-                           protocol ServerErrorIO chn services handlers )
+  :: (GRpcServerHandlers pkgs protocol ServerErrorIO chn handlers)
   => Proxy protocol
   -> Port
-  -> ServerT chn () ('Package ('Just name) services) ServerErrorIO handlers
+  -> ServerT chn () pkgs ServerErrorIO handlers
   -> IO ()
 runGRpcApp protocol port = runGRpcAppTrans protocol port id
 
 -- | Run a Mu 'Server' on the given port.
 runGRpcAppTrans
-  :: ( KnownName name
-     , GRpcServiceHandlers ('Package ('Just name) services)
-                           protocol m chn services handlers )
+  :: (GRpcServerHandlers pkgs protocol m chn handlers)
   => Proxy protocol
   -> Port
   -> (forall a. m a -> ServerErrorIO a)
-  -> ServerT chn () ('Package ('Just name) services) m handlers
+  -> ServerT chn () pkgs m handlers
   -> IO ()
 runGRpcAppTrans protocol port f svr = run port (gRpcAppTrans protocol f svr)
 
@@ -90,13 +86,11 @@ runGRpcAppTrans protocol port f svr = run port (gRpcAppTrans protocol f svr)
 --
 --   Go to 'Network.Wai.Handler.Warp' to declare 'Settings'.
 runGRpcAppSettings
-  :: ( KnownName name
-     , GRpcServiceHandlers ('Package ('Just name) services)
-                           protocol m chn services handlers )
+  :: (GRpcServerHandlers pkgs protocol m chn handlers)
   => Proxy protocol
   -> Settings
   -> (forall a. m a -> ServerErrorIO a)
-  -> ServerT chn () ('Package ('Just name) services) m handlers
+  -> ServerT chn () pkgs m handlers
   -> IO ()
 runGRpcAppSettings protocol st f svr = runSettings st (gRpcAppTrans protocol f svr)
 
@@ -105,13 +99,11 @@ runGRpcAppSettings protocol st f svr = runSettings st (gRpcAppTrans protocol f s
 --   Go to 'Network.Wai.Handler.WarpTLS' to declare 'TLSSettings'
 --   and to 'Network.Wai.Handler.Warp' to declare 'Settings'.
 runGRpcAppTLS
-  :: ( KnownName name
-     , GRpcServiceHandlers ('Package ('Just name) services)
-                           protocol m chn services handlers )
+  :: (GRpcServerHandlers pkgs protocol m chn handlers)
   => Proxy protocol
   -> TLSSettings -> Settings
   -> (forall a. m a -> ServerErrorIO a)
-  -> ServerT chn () ('Package ('Just name) services) m handlers
+  -> ServerT chn () pkgs m handlers
   -> IO ()
 runGRpcAppTLS protocol tls st f svr = runTLS tls st (gRpcAppTrans protocol f svr)
 
@@ -121,11 +113,9 @@ runGRpcAppTLS protocol tls st f svr = runTLS tls st (gRpcAppTrans protocol f svr
 --   for example, @wai-routes@, or you can add middleware
 --   from @wai-extra@, among others.
 gRpcApp
-  :: ( KnownName name
-     , GRpcServiceHandlers ('Package ('Just name) services)
-                           protocol ServerErrorIO chn services handlers )
+  :: (GRpcServerHandlers pkgs protocol ServerErrorIO chn handlers)
   => Proxy protocol
-  -> ServerT chn () ('Package ('Just name) services) ServerErrorIO handlers
+  -> ServerT chn () pkgs ServerErrorIO handlers
   -> Application
 gRpcApp protocol = gRpcAppTrans protocol id
 
@@ -135,29 +125,34 @@ gRpcApp protocol = gRpcAppTrans protocol id
 --   for example, @wai-routes@, or you can add middleware
 --   from @wai-extra@, among others.
 gRpcAppTrans
-  :: ( KnownName name
-     , GRpcServiceHandlers ('Package ('Just name) services)
-                           protocol m chn services handlers )
+  :: (GRpcServerHandlers pkgs protocol m chn handlers )
   => Proxy protocol
   -> (forall a. m a -> ServerErrorIO a)
-  -> ServerT chn () ('Package ('Just name) services) m handlers
+  -> ServerT chn () pkgs m handlers
   -> Application
-gRpcAppTrans protocol f svr
-  = Wai.grpcApp [uncompressed, gzip]
-                (gRpcServerHandlers protocol f svr)
+gRpcAppTrans protocol f s =
+  Wai.grpcApp [uncompressed, gzip]
+              (gRpcServerHandlers f protocol s)
 
-gRpcServerHandlers
-  :: forall name services handlers m protocol chn.
-     ( KnownName name
-     , GRpcServiceHandlers ('Package ('Just name) services)
-                           protocol m chn services handlers )
-  => Proxy protocol
-  -> (forall a. m a -> ServerErrorIO a)
-  -> ServerT chn () ('Package ('Just name) services) m handlers
-  -> [ServiceHandler]
-gRpcServerHandlers pr f (Services svr)
-  = gRpcServiceHandlers f (Proxy @('Package ('Just name) services)) pr packageName svr
-  where packageName = BS.pack (nameVal (Proxy @name))
+class GRpcServerHandlers (pkgs :: [Package snm mnm anm (TypeRef snm)])
+                         (p :: GRpcMessageProtocol)
+                         (m :: Type -> Type)
+                         (chn :: ServiceChain snm)
+                         (hs :: [[[Type]]]) where
+  gRpcServerHandlers :: (forall a. m a -> ServerErrorIO a)
+                     -> Proxy p -> ServerT chn () pkgs m hs -> [ServiceHandler]
+
+instance GRpcServerHandlers '[] p m chn  '[] where
+  gRpcServerHandlers _ _ NoPackages = []
+
+instance ( KnownName name, GRpcServiceHandlers ('Package ('Just name) ss) p m chn ss hs
+         , GRpcServerHandlers pkgs p m chn hss
+         ) =>
+         GRpcServerHandlers (('Package ('Just name) ss) ': pkgs) p m chn (hs ': hss) where
+  gRpcServerHandlers f proxyP (Packages (Services s1) rest) =
+    gRpcServiceHandlers f (Proxy @('Package ('Just name) ss)) proxyP packageName s1
+    ++ gRpcServerHandlers f proxyP rest
+    where packageName = BS.pack (nameVal (Proxy @name))
 
 class GRpcServiceHandlers (fullP :: Package snm mnm anm (TypeRef snm))
                           (p :: GRpcMessageProtocol) (m :: Type -> Type)
