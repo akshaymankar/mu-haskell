@@ -137,6 +137,10 @@ type SingleServerT info pkg = ServerT '[] info '[pkg]
 -- | Definition of a complete server
 --   for a set of packages, with possible
 --   references between them.
+--
+-- TODO: One service chain should be allowed per package, this is not really
+-- used in GRPC, but it is a little awkward in GraphQL to have one chain per
+-- package.
 data ServerT (chn :: ServiceChain snm) (info :: Type)
              (pkgs :: [Package snm mnm anm (TypeRef snm)])
              (m :: Type -> Type) (hs :: [[[Type]]]) where
