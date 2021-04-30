@@ -30,6 +30,7 @@ module Mu.GRpc.Server
   -- * Convert a 'Server' into a WAI application
 , gRpcApp, gRpcAppTrans
 , gRpcMultipleApp, gRpcMultipleAppTrans
+, MultipleServers(..)
   -- * Raise errors as exceptions in IO
 , raiseErrors, liftServerConduit
   -- * Re-export useful instances
