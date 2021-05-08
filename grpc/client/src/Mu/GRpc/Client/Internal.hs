@@ -304,7 +304,7 @@ conduitFromChannel chan promise = go
 
 instance ( KnownName name
          , GRpcInputWrapper p vref v, GRpcOutputWrapper p rref r
-         , handler ~ (CompressMode -> IO (ConduitT v (GRpcReply r) IO ())) )
+         , handler ~ (CompressMode -> IO (ConduitT v Void IO (), ConduitT () (GRpcReply r) IO ())))
          => GRpcMethodCall p ('Method name '[ 'ArgStream aname vref ]
                                       ('RetStream rref)) handler where
   gRpcMethodCall rpc _ client compress
@@ -320,7 +320,7 @@ instance ( KnownName name
                    @_ @(GRpcIWTy p vref v) @(GRpcOWTy p rref r)
                    rpc client
                    () (\_ ievent -> do -- on the first iteration, say that everything is OK
-                        _ <- liftIO $ atomically $ tryPutTMVar var (GRpcOk ())
+                        -- _ <- liftIO $ atomically $ tryPutTMVar var (GRpcOk ())
                         case ievent of
                           RecvMessage o -> liftIO $ atomically $ writeTMChan inchan (GRpcOk $ unGRpcOWTy(Proxy @p) (Proxy @rref) o)
                           Invalid e -> liftIO $ atomically $ writeTMChan inchan (GRpcErrorString (show e))
@@ -333,18 +333,17 @@ instance ( KnownName name
             case v of
               GRpcOk () -> liftIO $ atomically $ closeTMChan inchan
               _         -> liftIO $ atomically $ putTMVar var v
-         -- This conduit feeds information to the other thread
-         let go = do err <- liftIO $ atomically $ takeTMVar var
-                     case err of
-                       GRpcOk _ -> go2
-                       e        -> yield $ (\_ -> error "this should never happen") <$> e
-             go2 = do nextOut <- await
-                      case nextOut of
-                        Just v  -> do liftIO $ atomically $ writeTMChan outchan v
-                                      go2
-                        Nothing -> do r <- liftIO $ atomically $ tryReadTMChan inchan
-                                      case r of
-                                        Nothing            -> pure () -- both are empty, end
-                                        Just Nothing       -> go2
-                                        Just (Just nextIn) -> yield nextIn >> go2
-         pure go
+         -- TODO: What happens to var?
+         inConduit <- do
+               x <- liftIO $ atomically $ readTMChan inchan
+               case x of
+                 Nothing -> pure $ pure ()
+                 Just i -> pure $ yield i
+         let outConduit = do
+               x <- await
+               case x of
+                 Nothing -> pure ()
+                 Just o -> do
+                   liftIO $ atomically $ writeTMChan outchan o
+                   outConduit
+         pure (outConduit, inConduit)
