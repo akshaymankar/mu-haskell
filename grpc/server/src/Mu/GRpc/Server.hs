@@ -316,13 +316,13 @@ instance ToProtoBufTypeRef ref r
   type GRpcOWTy 'MsgProtoBuf ref r = ViaToProtoBufTypeRef ref r
   buildGRpcOWTy _ _ = ViaToProtoBufTypeRef
 
-instance forall (sch :: Schema') sty (r :: Type).
-         ( ToSchema sch sty r
-         , ToAvro (WithSchema sch sty r)
-         , HasAvroSchema (WithSchema sch sty r) )
-         => GRpcOutputWrapper 'MsgAvro ('SchemaRef sch sty) r where
-  type GRpcOWTy 'MsgAvro ('SchemaRef sch sty) r = ViaToAvroTypeRef ('SchemaRef sch sty) r
-  buildGRpcOWTy _ _ = ViaToAvroTypeRef
+-- instance forall (sch :: Schema') sty (r :: Type).
+--          ( ToSchema sch sty r
+--          , ToAvro (WithSchema sch sty r)
+--          , HasAvroSchema (WithSchema sch sty r) )
+--          => GRpcOutputWrapper 'MsgAvro ('SchemaRef sch sty) r where
+--   type GRpcOWTy 'MsgAvro ('SchemaRef sch sty) r = ViaToAvroTypeRef ('SchemaRef sch sty) r
+--   buildGRpcOWTy _ _ = ViaToAvroTypeRef
 
 class GRPCInput (RPCTy p) (GRpcIWTy p ref r)
       => GRpcInputWrapper (p :: GRpcMessageProtocol) (ref :: TypeRef snm) (r :: Type) where
@@ -334,13 +334,13 @@ instance FromProtoBufTypeRef ref r
   type GRpcIWTy 'MsgProtoBuf ref r = ViaFromProtoBufTypeRef ref r
   unGRpcIWTy _ _ = unViaFromProtoBufTypeRef
 
-instance forall (sch :: Schema') sty (r :: Type).
-         ( FromSchema sch sty r
-         , FromAvro (WithSchema sch sty r)
-         , HasAvroSchema (WithSchema sch sty r) )
-         => GRpcInputWrapper 'MsgAvro ('SchemaRef sch sty) r where
-  type GRpcIWTy 'MsgAvro ('SchemaRef sch sty) r = ViaFromAvroTypeRef ('SchemaRef sch sty) r
-  unGRpcIWTy _ _ = unViaFromAvroTypeRef
+-- instance forall (sch :: Schema') sty (r :: Type).
+--          ( FromSchema sch sty r
+--          , FromAvro (WithSchema sch sty r)
+--          , HasAvroSchema (WithSchema sch sty r) )
+--          => GRpcInputWrapper 'MsgAvro ('SchemaRef sch sty) r where
+--   type GRpcIWTy 'MsgAvro ('SchemaRef sch sty) r = ViaFromAvroTypeRef ('SchemaRef sch sty) r
+--   unGRpcIWTy _ _ = unViaFromAvroTypeRef
 
 ---
 
