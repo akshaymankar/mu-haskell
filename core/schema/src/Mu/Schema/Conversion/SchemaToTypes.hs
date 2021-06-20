@@ -53,7 +53,11 @@ typeDefToDecl _schemaTy namer (DRecord name [f])
        fVar <- newName "f"
        d <- newtypeD (pure [])
                      (mkName complete)
+#if MIN_VERSION_template_haskell(2,17,0)
+                     [PlainTV fVar ()]
+#else
                      [PlainTV fVar]
+#endif
                      Nothing
                      (pure (RecC (mkName complete) [fieldDefToDecl namer complete fVar f]))
                      [pure (DerivClause Nothing [ConT ''Generic])]
@@ -66,7 +70,11 @@ typeDefToDecl _schemaTy namer (DRecord name fields)
        fVar <- newName "f"
        d <- dataD (pure [])
                   (mkName complete)
+#if MIN_VERSION_template_haskell(2,17,0)
+                  [PlainTV fVar ()]
+#else
                   [PlainTV fVar]
+#endif
                   Nothing
                   [pure (RecC (mkName complete) (map (fieldDefToDecl namer complete fVar) fields))]
                   [pure (DerivClause Nothing [ConT ''Generic])]
@@ -79,7 +87,11 @@ typeDefToDecl _schemaTy namer (DEnum name choices)
        fVar <- newName "f"
        d <- dataD (pure [])
                   (mkName complete)
+#if MIN_VERSION_template_haskell(2,17,0)
+                  [PlainTV fVar ()]
+#else
                   [PlainTV fVar]
+#endif
                   Nothing
                   [ pure (RecC (mkName (choiceName complete choicename)) [])
                     | ChoiceDef choicename <- choices]
