@@ -1,6 +1,7 @@
 {-# language DataKinds        #-}
 {-# language TypeApplications #-}
 {-# language TypeFamilies     #-}
+{-# LANGUAGE PackageImports   #-}
 {-|
 Description : Examples for gRPC clients
 
@@ -12,7 +13,7 @@ import           Data.Conduit
 import           Data.Conduit.Combinators as C
 import           Data.Conduit.List        (consume)
 import qualified Data.Text                as T
-import           Network.HTTP2.Client     (HostName, PortNumber)
+import "http2-client" Network.HTTP2.Client     (HostName, PortNumber)
 
 import           Mu.Adapter.ProtoBuf
 import           Mu.GRpc.Client.TyApps

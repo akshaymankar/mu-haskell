@@ -9,6 +9,7 @@
 {-# language TypeFamilies           #-}
 {-# language TypeOperators          #-}
 {-# language UndecidableInstances   #-}
+{-# LANGUAGE PackageImports #-}
 {-|
 Description : Client for gRPC services using optics and labels
 
@@ -42,7 +43,7 @@ import           GHC.TypeLits
 import           Monitor.Tracing
 import           Network.GRPC.Client         (CompressMode)
 import qualified Network.GRPC.Client.Helpers as G
-import           Network.HTTP2.Client        (ClientError)
+import "http2-client" Network.HTTP2.Client        (ClientError)
 import           Optics.Core
 
 import           Mu.GRpc.Bridge

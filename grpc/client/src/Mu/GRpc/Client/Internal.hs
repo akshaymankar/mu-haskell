@@ -13,6 +13,7 @@
 {-# language TypeFamilies          #-}
 {-# language TypeOperators         #-}
 {-# language UndecidableInstances  #-}
+{-# language PackageImports        #-}
 {-# OPTIONS_GHC -fprint-explicit-kinds #-}
 -- | Client for gRPC services defined using Mu 'Service'
 module Mu.GRpc.Client.Internal where
@@ -37,8 +38,8 @@ import           Network.GRPC.Client           (CompressMode (..), IncomingEvent
                                                 OutgoingEvent (..), RawReply, StreamDone (..))
 import           Network.GRPC.Client.Helpers
 import           Network.GRPC.HTTP2.Encoding   (GRPCInput, GRPCOutput)
-import           Network.HTTP2                 (ErrorCode)
-import           Network.HTTP2.Client          (ClientError, ClientIO, TooMuchConcurrency,
+import           Network.HTTP2.Frame           (ErrorCode)
+import "http2-client" Network.HTTP2.Client     (ClientError, ClientIO, TooMuchConcurrency,
                                                 runExceptT, ExceptT)
 
 import           Mu.Adapter.ProtoBuf.Via
